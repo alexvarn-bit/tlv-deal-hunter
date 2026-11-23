@@ -1,83 +1,117 @@
 import os
-import requests
-from .config import TG_BOT_TOKEN, TG_CHANNEL_ID
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+import json
 
 
-def _mask_secret(value: str) -> str:
-    cleaned = value.strip()
-    if not cleaned:
-        return "<empty>"
-    if len(cleaned) <= 6:
-        return f"len={len(cleaned)} (too short)"
-    return f"len={len(cleaned)} preview={cleaned[:3]}...{cleaned[-3:]}"
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _check_bot_token(token: str) -> str:
-    url = f"https://api.telegram.org/bot{token}/getMe"
+def _mask_token(token: str) -> str:
+    clean = token.strip()
+    if len(clean) <= 8:
+        return "***"
+    return f"{clean[:3]}...{clean[-3:]}"
+
+
+def _extract_retry_after(status_code: int, body_text: str, headers) -> float | None:
+    if status_code != 429:
+        return None
+
     try:
-        resp = requests.get(url, timeout=15)
-        data = resp.json() if resp.content else {}
-        if resp.ok and data.get("ok"):
-            username = data.get("result", {}).get("username", "<unknown>")
-            return f"getMe OK (@{username})"
-        return f"getMe {resp.status_code}: {data.get('description', resp.text)}"
-    except Exception as exc:
-        return f"getMe check failed: {exc}"
+        payload = json.loads(body_text)
+        if isinstance(payload, dict):
+            params = payload.get("parameters")
+            if isinstance(params, dict) and params.get("retry_after") is not None:
+                return float(params["retry_after"])
+    except (ValueError, TypeError):
+        pass
+
+    if headers is not None:
+        retry_hdr = headers.get("Retry-After")
+        if retry_hdr:
+            try:
+                return float(retry_hdr)
+            except ValueError:
+                pass
+
+    return 10.0
 
 
 def send_channel_message(
     text: str,
-    token: str | None = None,
-    chat_id: str | None = None,
-    disable_web_page_preview: bool = False,
-) -> int:
-    raw_token = (
-        token if token is not None else TG_BOT_TOKEN or os.environ.get("TG_BOT_TOKEN", "")
-    ).strip()
-    raw_chat_id = (
-        chat_id if chat_id is not None else TG_CHANNEL_ID or os.environ.get("TG_CHANNEL_ID", "")
-    ).strip()
+    disable_web_page_preview: bool | None = None,
+    max_retries: int = 3,
+) -> int | None:
+    bot_token = (os.environ.get("TG_BOT_TOKEN") or "").strip()
+    chat_id = (os.environ.get("TG_CHANNEL_ID") or "").strip()
 
-    if not raw_token:
-        raise RuntimeError(
-            "Telegram bot token is empty. Check TG_BOT_TOKEN in GitHub Secrets and workflow env."
-        )
-    if not raw_chat_id:
-        raise RuntimeError(
-            "Telegram channel/chat ID is empty. Check TG_CHANNEL_ID in GitHub Secrets and workflow env."
-        )
+    if not bot_token:
+        raise RuntimeError("Telegram bot token is empty. Check TG_BOT_TOKEN in GitHub Secrets and workflow env.")
+    if not chat_id:
+        raise RuntimeError("Telegram channel/chat ID is empty. Check TG_CHANNEL_ID in GitHub Secrets and workflow env.")
 
-    print(f"TG diagnostic: token={_mask_secret(raw_token)} | chat_id={raw_chat_id}")
+    if disable_web_page_preview is None:
+        disable_preview = _env_flag("DISABLE_LINK_PREVIEW", default=False)
+    else:
+        disable_preview = bool(disable_web_page_preview)
 
-    url = f"https://api.telegram.org/bot{raw_token}/sendMessage"
+    print(f"TG diagnostic: token=len={len(bot_token)} preview={_mask_token(bot_token)} | chat_id=***")
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
-        "chat_id": raw_chat_id,
+        "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
-        "disable_web_page_preview": disable_web_page_preview,
+        "disable_web_page_preview": disable_preview,
     }
+    encoded_data = urllib.parse.urlencode(payload).encode("utf-8")
 
-    try:
-        resp = requests.post(url, json=payload, timeout=20)
-    except requests.RequestException as exc:
-        raise RuntimeError(f"Telegram network error: {exc}") from exc
+    attempt = 0
+    while True:
+        attempt += 1
+        req = urllib.request.Request(
+            url,
+            data=encoded_data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                raw_body = resp.read().decode("utf-8", errors="replace")
+                data = json.loads(raw_body)
+                if not data.get("ok"):
+                    raise RuntimeError(f"Telegram API returned ok=false: {raw_body}")
+                result = data.get("result") or {}
+                return result.get("message_id")
+        except urllib.error.HTTPError as err:
+            body_text = err.read().decode("utf-8", errors="replace")
+            hint = ""
+            if err.code == 400:
+                hint = " (check chat_id format: -100... or @channel_username and HTML tags)"
+            elif err.code == 403:
+                hint = " (check that bot is added as administrator to the channel)"
+            elif err.code == 404:
+                hint = " (check TG_BOT_TOKEN validity)"
 
-    if not resp.ok:
-        hint = ""
-        if resp.status_code == 404:
-            token_diag = _check_bot_token(raw_token)
-            hint = (
-                f" (check bot token format/value in secrets; empty/invalid token produces 404; "
-                f"{_mask_secret(raw_token)}; {token_diag})"
-            )
-        elif resp.status_code == 400:
-            hint = " (check chat_id, bot permissions in channel, or HTML parse_mode syntax)"
-        elif resp.status_code == 403:
-            hint = " (bot was blocked by user or lacks post permissions in channel)"
-        raise RuntimeError(f"Telegram API {resp.status_code}{hint}: {resp.text}")
+            retry_after = _extract_retry_after(err.code, body_text, err.headers)
+            if retry_after is not None and attempt <= max_retries:
+                sleep_sec = max(1.0, retry_after + 1.0)
+                print(f"TG rate limit (429): sleeping {sleep_sec:.1f}s before retry {attempt}/{max_retries}...")
+                time.sleep(sleep_sec)
+                continue
 
-    data = resp.json()
-    if not data.get("ok") or "result" not in data or "message_id" not in data["result"]:
-        raise RuntimeError(f"Unexpected Telegram API response payload: {data}")
-
-    return int(data["result"]["message_id"])
+            raise RuntimeError(f"Telegram API {err.code}{hint}: {body_text}") from err
+        except urllib.error.URLError as err:
+            if attempt <= max_retries:
+                sleep_sec = 2.0 * attempt
+                print(f"TG network error: {err.reason}; retrying in {sleep_sec:.1f}s ({attempt}/{max_retries})...")
+                time.sleep(sleep_sec)
+                continue
+            raise RuntimeError(f"Telegram network error after retries: {err.reason}") from err
