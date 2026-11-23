@@ -7,6 +7,13 @@ from .formatter import format_deal_post
 from .telegram_sender import send_channel_message
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def load_state(path_str: str) -> dict:
     path = Path(path_str)
     if not path.exists():
@@ -34,9 +41,9 @@ def save_state(path_str: str, state: dict) -> None:
 
 def make_deal_key(flight: dict, lang: str = "ru") -> str:
     return "|".join([
-        lang.strip().lower() or "ru",
-        str(flight.get("origin", "")).strip(),
-        str(flight.get("destination", "")).strip(),
+        (lang or "ru").strip().lower(),
+        str(flight.get("origin", "")).strip().upper(),
+        str(flight.get("destination", "")).strip().upper(),
         str(flight.get("departure_at", ""))[:10],
         str(flight.get("return_at", ""))[:10],
         str(flight.get("value", "")).strip(),
@@ -44,14 +51,18 @@ def make_deal_key(flight: dict, lang: str = "ru") -> str:
 
 
 def run() -> None:
-    lang = (os.environ.get("BOT_LANG") or os.environ.get("DEAL_LANG") or "ru").strip().lower()
-    disable_preview = (os.environ.get("DISABLE_LINK_PREVIEW", "false")).strip().lower() in {
-        "1",
-        "true",
-        "yes",
-    }
+    lang = (
+        os.environ.get("BOT_LANG")
+        or os.environ.get("DEAL_LANG")
+        or "ru"
+    ).strip().lower()
+    max_price = float(os.environ.get("MAX_PRICE_USD") or MAX_PRICE_USD)
+    state_path = (os.environ.get("STATE_FILE") or STATE_FILE).strip()
+    disable_preview = _env_flag("DISABLE_LINK_PREVIEW", default=False)
+    force_republish = _env_flag("FORCE_REPUBLISH", default=False)
+    dry_run = _env_flag("DRY_RUN", default=False)
 
-    state = load_state(STATE_FILE)
+    state = load_state(state_path)
     posted = state.setdefault("posted", {})
     flights = fetch_latest_tlv_prices(limit=30)
 
@@ -59,6 +70,7 @@ def run() -> None:
     skipped_price = 0
     skipped_dup = 0
     new_count = 0
+    sample_prices: list[float] = []
 
     for flight in flights:
         price = flight.get("value")
@@ -72,17 +84,24 @@ def run() -> None:
             skipped_price += 1
             continue
 
-        if price_val > float(MAX_PRICE_USD):
+        sample_prices.append(price_val)
+
+        if price_val > max_price:
             skipped_price += 1
             continue
 
         key = make_deal_key(flight, lang=lang)
         legacy_key = make_deal_key(flight, lang="")
-        if key in posted or legacy_key in posted:
+        if not force_republish and (key in posted or legacy_key in posted):
             skipped_dup += 1
             continue
 
         text = format_deal_post(flight, lang=lang)
+        if dry_run:
+            print(f"[DRY_RUN] Would publish key={key}:\n{text}\n---")
+            new_count += 1
+            continue
+
         msg_id = send_channel_message(text, disable_web_page_preview=disable_preview)
         posted[key] = {
             "message_id": msg_id,
@@ -90,14 +109,27 @@ def run() -> None:
             "lang": lang,
         }
         new_count += 1
-        # Сохраняем сразу после каждой успешной отправки, чтобы при сбое на следующем посте не было дублей
-        save_state(STATE_FILE, state)
+        save_state(state_path, state)
 
-    status = "OK"
+    min_price_str = f"{min(sample_prices):.2f}" if sample_prices else "n/a"
+    max_price_seen_str = f"{max(sample_prices):.2f}" if sample_prices else "n/a"
+
     print(
-        f"STATUS={status} | LANG={lang} | FETCHED={fetched_count} | "
-        f"SKIP_PRICE={skipped_price} | SKIP_DUP={skipped_dup} | PUBLISHED={new_count}"
+        f"STATUS=OK | LANG={lang} | MAX_PRICE={max_price:.2f} | "
+        f"FETCHED={fetched_count} | SKIP_PRICE={skipped_price} | "
+        f"SKIP_DUP={skipped_dup} | PUBLISHED={new_count} | "
+        f"SEEN_PRICES={min_price_str}..{max_price_seen_str}"
     )
+
+    if new_count == 0:
+        if fetched_count == 0:
+            print("REASON=ZERO: Travelpayouts returned 0 flights.")
+        elif skipped_price == fetched_count:
+            print(f"REASON=ZERO: All {fetched_count} flights exceeded MAX_PRICE_USD ({max_price:.2f}).")
+        elif skipped_dup > 0:
+            print("REASON=ZERO: Remaining cheap flights were already posted (SKIP_DUP).")
+        else:
+            print("REASON=ZERO: No flights matched publication criteria.")
 
 
 if __name__ == "__main__":
