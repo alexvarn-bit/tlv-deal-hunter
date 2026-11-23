@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import time
 from .config import MAX_PRICE_USD, STATE_FILE
 from .travelpayouts import fetch_latest_tlv_prices
 from .formatter import format_deal_post
@@ -62,6 +63,12 @@ def run() -> None:
     force_republish = _env_flag("FORCE_REPUBLISH", default=False)
     dry_run = _env_flag("DRY_RUN", default=False)
 
+    try:
+        send_delay = float(os.environ.get("SEND_DELAY_SECONDS") or "1.5")
+    except (TypeError, ValueError):
+        send_delay = 1.5
+    send_delay = max(0.0, send_delay)
+
     state = load_state(state_path)
     posted = state.setdefault("posted", {})
     flights = fetch_latest_tlv_prices(limit=30)
@@ -110,6 +117,8 @@ def run() -> None:
         }
         new_count += 1
         save_state(state_path, state)
+        if send_delay > 0:
+            time.sleep(send_delay)
 
     min_price_str = f"{min(sample_prices):.2f}" if sample_prices else "n/a"
     max_price_seen_str = f"{max(sample_prices):.2f}" if sample_prices else "n/a"
