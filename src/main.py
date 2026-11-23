@@ -1,11 +1,13 @@
+from datetime import datetime
 import json
 import os
 from pathlib import Path
 import time
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from .config import MAX_PRICE_USD, STATE_FILE
 from .travelpayouts import fetch_latest_tlv_prices
 from .formatter import format_deal_post
-from .telegram_sender import send_channel_message
+from .telegram_sender import send_channel_message, send_channel_photo
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -33,6 +35,58 @@ def _env_float(name: str, default: float) -> float:
         return float(raw.strip())
     except ValueError:
         return default
+
+
+def _get_timezone() -> ZoneInfo:
+    tz_name = (os.environ.get("DEAL_TIMEZONE") or "Asia/Jerusalem").strip()
+    try:
+        return ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        return ZoneInfo("Asia/Jerusalem")
+
+
+def _parse_iso_date(raw_value: str | None, tz: ZoneInfo) -> datetime | None:
+    if not raw_value:
+        return None
+    text = str(raw_value).strip()
+    if not text:
+        return None
+
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y"):
+        if len(text) == 10:
+            try:
+                return datetime.strptime(text, fmt)
+            except ValueError:
+                pass
+
+    normalized = text.replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(normalized)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(tz)
+        return dt.replace(tzinfo=None)
+    except ValueError:
+        pass
+
+    prefix = text[:10]
+    if len(prefix) == 10:
+        try:
+            return datetime.strptime(prefix, "%Y-%m-%d")
+        except ValueError:
+            pass
+
+    return None
+
+
+def _has_valid_departure_date(flight: dict, today_date, tz: ZoneInfo) -> bool:
+    dep_dt = _parse_iso_date(flight.get("departure_at"), tz)
+    if dep_dt is None:
+        return False
+    return dep_dt.date() >= today_date
+
+
+def _has_return_date(flight: dict, tz: ZoneInfo) -> bool:
+    return _parse_iso_date(flight.get("return_at"), tz) is not None
 
 
 def load_state(path_str: str) -> dict:
@@ -71,11 +125,6 @@ def make_deal_key(flight: dict, lang: str = "ru") -> str:
     ])
 
 
-def _has_departure_date(flight: dict) -> bool:
-    dep = str(flight.get("departure_at") or "").strip()
-    return len(dep) >= 8
-
-
 def run() -> None:
     lang = (
         os.environ.get("BOT_LANG")
@@ -88,8 +137,13 @@ def run() -> None:
     state_path = (os.environ.get("STATE_FILE") or STATE_FILE).strip()
 
     disable_preview = _env_flag("DISABLE_LINK_PREVIEW", default=True)
+    require_return = _env_flag("REQUIRE_RETURN_DATE", default=False)
+    send_photo = _env_flag("SEND_CITY_PHOTO", default=True)
     force_republish = _env_flag("FORCE_REPUBLISH", default=False)
     dry_run = _env_flag("DRY_RUN", default=False)
+
+    tz = _get_timezone()
+    today_date = datetime.now(tz).date()
 
     state = load_state(state_path)
     posted = state.setdefault("posted", {})
@@ -97,6 +151,7 @@ def run() -> None:
 
     fetched_count = len(flights)
     skipped_no_date = 0
+    skipped_roundtrip = 0
     skipped_price = 0
     skipped_dup = 0
     skipped_city = 0
@@ -106,8 +161,12 @@ def run() -> None:
     candidates: list[tuple[float, str, dict]] = []
 
     for flight in flights:
-        if not _has_departure_date(flight):
+        if not _has_valid_departure_date(flight, today_date, tz):
             skipped_no_date += 1
+            continue
+
+        if require_return and not _has_return_date(flight, tz):
+            skipped_roundtrip += 1
             continue
 
         price = flight.get("value")
@@ -154,17 +213,29 @@ def run() -> None:
 
     for idx, (price_val, flight) in enumerate(selected_for_run):
         key = make_deal_key(flight, lang=lang)
+        dest = str(flight.get("destination") or "").strip().upper()
         text = format_deal_post(flight, lang=lang)
 
         if dry_run:
-            print(f"[DRY_RUN] Would publish key={key}:\n{text}\n---")
+            print(f"[DRY_RUN] Would publish key={key} photo={send_photo}:\n{text}\n---")
             new_count += 1
             continue
 
         if idx > 0 and send_delay > 0:
             time.sleep(send_delay)
 
-        msg_id = send_channel_message(text, disable_web_page_preview=disable_preview)
+        if send_photo:
+            msg_id = send_channel_photo(
+                text=text,
+                destination_code=dest,
+                disable_web_page_preview=disable_preview,
+            )
+        else:
+            msg_id = send_channel_message(
+                text=text,
+                disable_web_page_preview=disable_preview,
+            )
+
         posted[key] = {
             "message_id": msg_id,
             "price": price_val,
@@ -180,7 +251,8 @@ def run() -> None:
 
     print(
         f"STATUS=OK | LANG={lang} | MAX_PRICE={max_price:.2f} | "
-        f"FETCHED={fetched_count} | SKIP_NO_DATE={skipped_no_date} | "
+        f"REQUIRE_RETURN={require_return} | FETCHED={fetched_count} | "
+        f"SKIP_NO_DATE={skipped_no_date} | SKIP_RT={skipped_roundtrip} | "
         f"SKIP_PRICE={skipped_price} | SKIP_DUP={skipped_dup} | "
         f"SKIP_CITY={skipped_city} | SKIP_CAP={skipped_cap} | "
         f"PUBLISHED={new_count} | SEEN_PRICES={min_price_str}..{max_price_seen_str}"
@@ -190,11 +262,9 @@ def run() -> None:
         if fetched_count == 0:
             print("REASON=ZERO: Travelpayouts returned 0 flights.")
         elif skipped_no_date == fetched_count:
-            print("REASON=ZERO: None of the fetched flights had departure dates.")
-        elif skipped_price == len(flights) - skipped_no_date:
-            print(f"REASON=ZERO: All dated flights exceeded MAX_PRICE_USD ({max_price:.2f}).")
+            print("REASON=ZERO: None of the fetched flights had valid upcoming departure dates.")
         elif skipped_dup > 0:
-            print("REASON=ZERO: Remaining dated cheap flights were already posted (SKIP_DUP).")
+            print("REASON=ZERO: Remaining cheap flights were already posted (SKIP_DUP).")
         else:
             print("REASON=ZERO: No flights matched publication criteria.")
 
