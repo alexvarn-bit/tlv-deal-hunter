@@ -71,6 +71,11 @@ def make_deal_key(flight: dict, lang: str = "ru") -> str:
     ])
 
 
+def _has_departure_date(flight: dict) -> bool:
+    dep = str(flight.get("departure_at") or "").strip()
+    return len(dep) >= 8
+
+
 def run() -> None:
     lang = (
         os.environ.get("BOT_LANG")
@@ -88,9 +93,10 @@ def run() -> None:
 
     state = load_state(state_path)
     posted = state.setdefault("posted", {})
-    flights = fetch_latest_tlv_prices(limit=30)
+    flights = fetch_latest_tlv_prices(limit=100, max_date_lookups=15)
 
     fetched_count = len(flights)
+    skipped_no_date = 0
     skipped_price = 0
     skipped_dup = 0
     skipped_city = 0
@@ -100,6 +106,10 @@ def run() -> None:
     candidates: list[tuple[float, str, dict]] = []
 
     for flight in flights:
+        if not _has_departure_date(flight):
+            skipped_no_date += 1
+            continue
+
         price = flight.get("value")
         if price is None:
             skipped_price += 1
@@ -126,7 +136,6 @@ def run() -> None:
         dest = str(flight.get("destination") or "").strip().upper()
         candidates.append((price_val, dest, flight))
 
-    # Сортируем от самых дешёвых к более дорогим, затем берём по 1 лучшему рейсу на город за запуск
     candidates.sort(key=lambda item: item[0])
 
     seen_destinations_in_run: set[str] = set()
@@ -171,19 +180,21 @@ def run() -> None:
 
     print(
         f"STATUS=OK | LANG={lang} | MAX_PRICE={max_price:.2f} | "
-        f"FETCHED={fetched_count} | SKIP_PRICE={skipped_price} | "
-        f"SKIP_DUP={skipped_dup} | SKIP_CITY={skipped_city} | "
-        f"SKIP_CAP={skipped_cap} | PUBLISHED={new_count} | "
-        f"SEEN_PRICES={min_price_str}..{max_price_seen_str}"
+        f"FETCHED={fetched_count} | SKIP_NO_DATE={skipped_no_date} | "
+        f"SKIP_PRICE={skipped_price} | SKIP_DUP={skipped_dup} | "
+        f"SKIP_CITY={skipped_city} | SKIP_CAP={skipped_cap} | "
+        f"PUBLISHED={new_count} | SEEN_PRICES={min_price_str}..{max_price_seen_str}"
     )
 
     if new_count == 0:
         if fetched_count == 0:
             print("REASON=ZERO: Travelpayouts returned 0 flights.")
-        elif skipped_price == fetched_count:
-            print(f"REASON=ZERO: All {fetched_count} flights exceeded MAX_PRICE_USD ({max_price:.2f}).")
+        elif skipped_no_date == fetched_count:
+            print("REASON=ZERO: None of the fetched flights had departure dates.")
+        elif skipped_price == len(flights) - skipped_no_date:
+            print(f"REASON=ZERO: All dated flights exceeded MAX_PRICE_USD ({max_price:.2f}).")
         elif skipped_dup > 0:
-            print("REASON=ZERO: Remaining cheap flights were already posted (SKIP_DUP).")
+            print("REASON=ZERO: Remaining dated cheap flights were already posted (SKIP_DUP).")
         else:
             print("REASON=ZERO: No flights matched publication criteria.")
 
