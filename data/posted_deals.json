@@ -1,3 +1,64 @@
 {
-  "posted": {}
+  "posted": {
+    "ru|TLV|LCA|||35": {
+      "message_id": 2,
+      "price": 35.0,
+      "lang": "ru"
+    },
+    "ru|TLV|LCA|||39": {
+      "message_id": 3,
+      "price": 39.0,
+      "lang": "ru"
+    },
+    "ru|TLV|LCA|||40": {
+      "message_id": 4,
+      "price": 40.0,
+      "lang": "ru"
+    },
+    "ru|TLV|LCA|||42": {
+      "message_id": 5,
+      "price": 42.0,
+      "lang": "ru"
+    },
+    "ru|TLV|LCA|||43": {
+      "message_id": 6,
+      "price": 43.0,
+      "lang": "ru"
+    },
+    "ru|TLV|CTA|||43": {
+      "message_id": 7,
+      "price": 43.0,
+      "lang": "ru"
+    },
+    "ru|TLV|LCA|||44": {
+      "message_id": 8,
+      "price": 44.0,
+      "lang": "ru"
+    },
+    "ru|TLV|PMO|||44": {
+      "message_id": 9,
+      "price": 44.0,
+      "lang": "ru"
+    },
+    "ru|TLV|LCA|||45": {
+      "message_id": 10,
+      "price": 45.0,
+      "lang": "ru"
+    },
+    "ru|TLV|CTA|||45": {
+      "message_id": 11,
+      "price": 45.0,
+      "lang": "ru"
+    },
+    "ru|TLV|PMO|||45": {
+      "message_id": 12,
+      "price": 45.0,
+      "lang": "ru"
+    },
+    "ru|TLV|LCA|||46": {
+      "message_id": 13,
+      "price": 46.0,
+      "lang": "ru"
+    }
+  }
 }
