@@ -1,9 +1,9 @@
+import json
 import os
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import json
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -41,7 +41,7 @@ def _extract_retry_after(status_code: int, body_text: str, headers) -> float | N
             except ValueError:
                 pass
 
-    return 10.0
+    return 15.0
 
 
 def send_channel_message(
@@ -58,7 +58,7 @@ def send_channel_message(
         raise RuntimeError("Telegram channel/chat ID is empty. Check TG_CHANNEL_ID in GitHub Secrets and workflow env.")
 
     if disable_web_page_preview is None:
-        disable_preview = _env_flag("DISABLE_LINK_PREVIEW", default=False)
+        disable_preview = _env_flag("DISABLE_LINK_PREVIEW", default=True)
     else:
         disable_preview = bool(disable_web_page_preview)
 
@@ -102,7 +102,7 @@ def send_channel_message(
 
             retry_after = _extract_retry_after(err.code, body_text, err.headers)
             if retry_after is not None and attempt <= max_retries:
-                sleep_sec = max(1.0, retry_after + 1.0)
+                sleep_sec = max(2.0, retry_after + 2.0)
                 print(f"TG rate limit (429): sleeping {sleep_sec:.1f}s before retry {attempt}/{max_retries}...")
                 time.sleep(sleep_sec)
                 continue
