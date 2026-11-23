@@ -93,10 +93,11 @@ def run() -> None:
     fetched_count = len(flights)
     skipped_price = 0
     skipped_dup = 0
+    skipped_city = 0
     skipped_cap = 0
     new_count = 0
     sample_prices: list[float] = []
-    candidates: list[tuple[float, dict]] = []
+    candidates: list[tuple[float, str, dict]] = []
 
     for flight in flights:
         price = flight.get("value")
@@ -122,16 +123,27 @@ def run() -> None:
             skipped_dup += 1
             continue
 
-        candidates.append((price_val, flight))
+        dest = str(flight.get("destination") or "").strip().upper()
+        candidates.append((price_val, dest, flight))
 
-    # Публикуем сначала самые выгодные предложения
+    # Сортируем от самых дешёвых к более дорогим, затем берём по 1 лучшему рейсу на город за запуск
     candidates.sort(key=lambda item: item[0])
 
-    for idx, (price_val, flight) in enumerate(candidates):
-        if new_count >= max_posts:
+    seen_destinations_in_run: set[str] = set()
+    selected_for_run: list[tuple[float, dict]] = []
+
+    for price_val, dest, flight in candidates:
+        if dest and dest in seen_destinations_in_run:
+            skipped_city += 1
+            continue
+        if len(selected_for_run) >= max_posts:
             skipped_cap += 1
             continue
+        if dest:
+            seen_destinations_in_run.add(dest)
+        selected_for_run.append((price_val, flight))
 
+    for idx, (price_val, flight) in enumerate(selected_for_run):
         key = make_deal_key(flight, lang=lang)
         text = format_deal_post(flight, lang=lang)
 
@@ -148,6 +160,8 @@ def run() -> None:
             "message_id": msg_id,
             "price": price_val,
             "lang": lang,
+            "departure_at": str(flight.get("departure_at") or "")[:10],
+            "return_at": str(flight.get("return_at") or "")[:10],
         }
         new_count += 1
         save_state(state_path, state)
@@ -158,8 +172,9 @@ def run() -> None:
     print(
         f"STATUS=OK | LANG={lang} | MAX_PRICE={max_price:.2f} | "
         f"FETCHED={fetched_count} | SKIP_PRICE={skipped_price} | "
-        f"SKIP_DUP={skipped_dup} | SKIP_CAP={skipped_cap} | "
-        f"PUBLISHED={new_count} | SEEN_PRICES={min_price_str}..{max_price_seen_str}"
+        f"SKIP_DUP={skipped_dup} | SKIP_CITY={skipped_city} | "
+        f"SKIP_CAP={skipped_cap} | PUBLISHED={new_count} | "
+        f"SEEN_PRICES={min_price_str}..{max_price_seen_str}"
     )
 
     if new_count == 0:
