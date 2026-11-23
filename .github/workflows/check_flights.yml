@@ -4,14 +4,40 @@ on:
   schedule:
     - cron: "17 */2 * * *"
   workflow_dispatch:
+    inputs:
+      force_republish:
+        description: "Force republish matching deals (true/false)"
+        required: false
+        default: "false"
+        type: string
+      disable_link_preview:
+        description: "Disable Telegram link previews (true/false)"
+        required: false
+        default: "false"
+        type: string
 
 permissions:
   contents: write
+
+concurrency:
+  group: tlv-cheap-flights-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   hunt-flights:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lang: ru
+            state_file: data/posted_deals_ru.json
+            tg_channel_secret: TG_CHANNEL_ID_RU
+          - lang: he
+            state_file: data/posted_deals_he.json
+            tg_channel_secret: TG_CHANNEL_ID_HE
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,22 +51,29 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run flight tracker
+      - name: Run flight tracker (${{ matrix.lang }})
         env:
           TP_TOKEN: ${{ secrets.TP_TOKEN }}
           TP_MARKER: ${{ secrets.TP_MARKER }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          TG_CHANNEL_ID: ${{ secrets.TG_CHANNEL_ID }}
+          TG_CHANNEL_ID: ${{ matrix.lang == 'ru' && secrets.TG_CHANNEL_ID_RU || secrets.TG_CHANNEL_ID_HE }}
+          BOT_LANG: ${{ matrix.lang }}
+          DEAL_LANG: ${{ matrix.lang }}
+          STATE_FILE: ${{ matrix.state_file }}
           MAX_PRICE_USD: "120"
+          FORCE_REPUBLISH: ${{ inputs.force_republish || 'false' }}
+          DISABLE_LINK_PREVIEW: ${{ inputs.disable_link_preview || 'false' }}
         run: python -m src.main
 
-      - name: Commit updated deal state
+      - name: Commit updated deal state (${{ matrix.lang }})
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/posted_deals.json
+          mkdir -p "$(dirname "${{ matrix.state_file }}")"
+          touch "${{ matrix.state_file }}"
+          git add "${{ matrix.state_file }}"
           if ! git diff --staged --quiet; then
-            git commit -m "chore: update posted TLV flight deals"
+            git commit -m "chore: update posted TLV flight deals (${{ matrix.lang }})"
             git pull --rebase --autostash origin HEAD
             git push
           fi
