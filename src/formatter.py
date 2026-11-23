@@ -17,7 +17,7 @@ AIRPORT_NAMES: dict[str, dict[str, str]] = {
     "CFU": {"ru": "Корфу", "he": "קורפו"},
     "FCO": {"ru": "Рим", "he": "רומא"},
     "MXP": {"ru": "Милан", "he": "מילאנו"},
-    "BGY": {"ru": "Бергамо / Милан", "he": "ברגמו / מילאנו"},
+    "BGY": {"ru": "Бергамо", "he": "ברגמו"},
     "VCE": {"ru": "Венеция", "he": "ונציה"},
     "NAP": {"ru": "Неаполь", "he": "נאפולי"},
     "CTA": {"ru": "Катания", "he": "קטניה"},
@@ -33,13 +33,13 @@ AIRPORT_NAMES: dict[str, dict[str, str]] = {
     "BCN": {"ru": "Барселона", "he": "ברצלונה"},
     "MAD": {"ru": "Мадрид", "he": "מדריד"},
     "AGP": {"ru": "Малага", "he": "מלאגה"},
-    "LTN": {"ru": "Лондон (Лутон)", "he": "לונדון (לוטון)"},
-    "STN": {"ru": "Лондон (Станстед)", "he": "לונדון (סטנסטד)"},
-    "LGW": {"ru": "Лондон (Гатвик)", "he": "לונדון (גטוויק)"},
-    "LHR": {"ru": "Лондон (Хитроу)", "he": "לונדון (הית'רו)"},
+    "LTN": {"ru": "Лондон", "he": "לונדון"},
+    "STN": {"ru": "Лондон", "he": "לונדון"},
+    "LGW": {"ru": "Лондон", "he": "לונדון"},
+    "LHR": {"ru": "Лондон", "he": "לונדון"},
     "CDG": {"ru": "Париж", "he": "פריז"},
-    "ORY": {"ru": "Париж (Орли)", "he": "פריז (אורלי)"},
-    "BVA": {"ru": "Париж (Бове)", "he": "פריז (בובה)"},
+    "ORY": {"ru": "Париж", "he": "פריז"},
+    "BVA": {"ru": "Париж", "he": "פריז"},
     "BER": {"ru": "Берлин", "he": "ברלין"},
     "FRA": {"ru": "Франкфурт", "he": "פרנקפורט"},
     "MUC": {"ru": "Мюнхен", "he": "מינכן"},
@@ -48,7 +48,7 @@ AIRPORT_NAMES: dict[str, dict[str, str]] = {
     "ZRH": {"ru": "Цюрих", "he": "ציריך"},
     "GVA": {"ru": "Женева", "he": "ז'נבה"},
     "IST": {"ru": "Стамбул", "he": "איסטנבול"},
-    "SAW": {"ru": "Стамбул (Сабиха)", "he": "איסטנבול (סביחה)"},
+    "SAW": {"ru": "Стамбул", "he": "איסטנבול"},
     "DXB": {"ru": "Дубай", "he": "דובאי"},
     "AUH": {"ru": "Абу-Даби", "he": "אבו דאבי"},
     "AMM": {"ru": "Амман", "he": "עמאן"},
@@ -67,16 +67,16 @@ AIRLINE_NAMES: dict[str, dict[str, str]] = {
     "6H": {"ru": "Israir", "he": "ישראייר"},
     "FR": {"ru": "Ryanair", "he": "ריאנאיר"},
     "W6": {"ru": "Wizz Air", "he": "וויז אייר"},
-    "W4": {"ru": "Wizz Air Malta", "he": "וויז אייר מלטה"},
+    "W4": {"ru": "Wizz Air", "he": "וויז אייר"},
     "U2": {"ru": "easyJet", "he": "איזיג'ט"},
-    "EJU": {"ru": "easyJet Europe", "he": "איזיג'ט אירופה"},
-    "A3": {"ru": "Aegean Airlines", "he": "אג'יאן איירליינס"},
+    "EJU": {"ru": "easyJet", "he": "איזיג'ט"},
+    "A3": {"ru": "Aegean", "he": "אג'יאן"},
     "QS": {"ru": "Smartwings", "he": "סמארטווינגס"},
     "HV": {"ru": "Transavia", "he": "טרנסאוויה"},
-    "TO": {"ru": "Transavia France", "he": "טרנסאוויה צרפת"},
+    "TO": {"ru": "Transavia", "he": "טרנסאוויה"},
     "VY": {"ru": "Vueling", "he": "וולינג"},
-    "LO": {"ru": "LOT Polish Airlines", "he": "לוט"},
-    "OS": {"ru": "Austrian Airlines", "he": "אוסטריאן איירליינס"},
+    "LO": {"ru": "LOT", "he": "לוט"},
+    "OS": {"ru": "Austrian", "he": "אוסטריאן"},
     "LH": {"ru": "Lufthansa", "he": "לופטהנזה"},
     "LX": {"ru": "SWISS", "he": "סוויס"},
     "AF": {"ru": "Air France", "he": "אייר פראנס"},
@@ -84,15 +84,15 @@ AIRLINE_NAMES: dict[str, dict[str, str]] = {
     "BA": {"ru": "British Airways", "he": "בריטיש איירווייז"},
     "IB": {"ru": "Iberia", "he": "איבריה"},
     "TK": {"ru": "Turkish Airlines", "he": "טורקיש איירליינס"},
-    "PC": {"ru": "Pegasus Airlines", "he": "פגסוס"},
+    "PC": {"ru": "Pegasus", "he": "פגסוס"},
     "FZ": {"ru": "flydubai", "he": "פליי דובאי"},
-    "EY": {"ru": "Etihad Airways", "he": "איתיחאד איירווייז"},
+    "EY": {"ru": "Etihad", "he": "איתיחאד"},
     "EK": {"ru": "Emirates", "he": "אמירייטס"},
     "RJ": {"ru": "Royal Jordanian", "he": "רויאל ג'ורדניאן"},
     "JU": {"ru": "Air Serbia", "he": "אייר סרביה"},
     "RO": {"ru": "TAROM", "he": "טארום"},
     "FB": {"ru": "Bulgaria Air", "he": "בולגריה אייר"},
-    "KM": {"ru": "KM Malta Airlines", "he": "אייר מלטה"},
+    "KM": {"ru": "KM Malta", "he": "אייר מלטה"},
 }
 
 
@@ -111,10 +111,7 @@ def format_airport_label(code: str, lang: str = "ru") -> str:
     entry = AIRPORT_NAMES.get(clean_code)
     if not entry:
         return clean_code
-    city = entry.get(lang) or entry.get("ru") or entry.get("he")
-    if not city:
-        return clean_code
-    return f"{clean_code} ({city})"
+    return entry.get(lang) or entry.get("ru") or entry.get("he") or clean_code
 
 
 def format_airline_label(airline_code: str | None, lang: str = "ru") -> str:
@@ -124,23 +121,19 @@ def format_airline_label(airline_code: str | None, lang: str = "ru") -> str:
     entry = AIRLINE_NAMES.get(code)
     if not entry:
         return code
-    name = entry.get(lang) or entry.get("ru") or entry.get("he")
-    if not name:
-        return code
-    return f"{name} ({code})"
+    return entry.get(lang) or entry.get("ru") or entry.get("he") or code
 
 
-def _parse_date_value(raw_value: str | None, tz: ZoneInfo) -> tuple[datetime | None, bool]:
+def _parse_date_value(raw_value: str | None, tz: ZoneInfo) -> datetime | None:
     if not raw_value:
-        return None, False
+        return None
     text = str(raw_value).strip()
     if not text:
-        return None, False
+        return None
 
     if len(text) == 10 and text[4] == "-" and text[7] == "-":
         try:
-            dt = datetime.strptime(text, "%Y-%m-%d")
-            return dt, False
+            return datetime.strptime(text, "%Y-%m-%d")
         except ValueError:
             pass
 
@@ -149,19 +142,18 @@ def _parse_date_value(raw_value: str | None, tz: ZoneInfo) -> tuple[datetime | N
         dt = datetime.fromisoformat(normalized)
         if dt.tzinfo is not None:
             dt = dt.astimezone(tz)
-        return dt, True
+        return dt
     except ValueError:
         pass
 
     prefix = text[:10]
     if len(prefix) == 10:
         try:
-            dt = datetime.strptime(prefix, "%Y-%m-%d")
-            return dt, False
+            return datetime.strptime(prefix, "%Y-%m-%d")
         except ValueError:
             pass
 
-    return None, False
+    return None
 
 
 def _format_single_date(dt: datetime, ref_year: int) -> str:
@@ -171,13 +163,13 @@ def _format_single_date(dt: datetime, ref_year: int) -> str:
 
 
 def _format_dates(dep_raw: str | None, ret_raw: str | None, lang: str, tz: ZoneInfo) -> str:
-    dep_dt, _ = _parse_date_value(dep_raw, tz)
-    ret_dt, _ = _parse_date_value(ret_raw, tz)
+    dep_dt = _parse_date_value(dep_raw, tz)
+    ret_dt = _parse_date_value(ret_raw, tz)
     now_year = datetime.now(tz).year
 
     if dep_dt and ret_dt:
         ref_year = dep_dt.year if dep_dt.year != now_year else now_year
-        return f"{_format_single_date(dep_dt, ref_year)} — {_format_single_date(ret_dt, ref_year)}"
+        return f"{_format_single_date(dep_dt, ref_year)}–{_format_single_date(ret_dt, ref_year)}"
 
     if dep_dt:
         dep_str = _format_single_date(dep_dt, now_year)
@@ -259,17 +251,13 @@ def format_deal_post(flight: dict, lang: str | None = None) -> str:
 
     if resolved_lang == "he":
         return (
-            f"✈️ <b>{e_origin} → {e_dest}</b> ב-<b>${e_price}</b>\n"
-            f"📅 תאריכים: {e_dates}\n"
-            f"🛫 חברת תעופה: {e_airline} ({e_route})\n\n"
-            f"🔗 <a href=\"{e_link}\">לבדיקה והזמנה</a>\n"
-            f"<i>המחיר עדכני לרגע הפרסום ועשוי להשתנות במהירות.</i>"
+            f"✈️ <b>{e_origin} → {e_dest}</b> | <b>${e_price}</b>\n"
+            f"📅 {e_dates} • {e_airline} ({e_route})\n"
+            f"👉 <a href=\"{e_link}\">לבדיקה והזמנה</a>"
         )
 
     return (
-        f"✈️ <b>{e_origin} → {e_dest}</b> за <b>${e_price}</b>\n"
-        f"📅 Даты: {e_dates}\n"
-        f"🛫 Авиакомпания: {e_airline} ({e_route})\n\n"
-        f"🔗 <a href=\"{e_link}\">Проверить и забронировать</a>\n"
-        f"<i>Цена актуальна на момент публикации и может быстро измениться.</i>"
+        f"✈️ <b>{e_origin} → {e_dest}</b> — <b>${e_price}</b>\n"
+        f"📅 {e_dates} • {e_airline} ({e_route})\n"
+        f"👉 <a href=\"{e_link}\">Проверить и забронировать</a>"
     )
