@@ -1,9 +1,11 @@
 {
   "posted": {
     "ru|TLV|LCA|||35": {
-      "message_id": 95,
+      "message_id": 99,
       "price": 35.0,
-      "lang": "ru"
+      "lang": "ru",
+      "departure_at": "",
+      "return_at": ""
     },
     "ru|TLV|LCA|||39": {
       "message_id": 96,
@@ -26,9 +28,11 @@
       "lang": "ru"
     },
     "ru|TLV|CTA|||43": {
-      "message_id": 7,
+      "message_id": 100,
       "price": 43.0,
-      "lang": "ru"
+      "lang": "ru",
+      "departure_at": "",
+      "return_at": ""
     },
     "ru|TLV|LCA|||44": {
       "message_id": 8,
@@ -36,9 +40,11 @@
       "lang": "ru"
     },
     "ru|TLV|PMO|||44": {
-      "message_id": 9,
+      "message_id": 101,
       "price": 44.0,
-      "lang": "ru"
+      "lang": "ru",
+      "departure_at": "",
+      "return_at": ""
     },
     "ru|TLV|LCA|||45": {
       "message_id": 10,
