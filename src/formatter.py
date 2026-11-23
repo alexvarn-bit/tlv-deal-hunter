@@ -131,11 +131,12 @@ def _parse_date_value(raw_value: str | None, tz: ZoneInfo) -> datetime | None:
     if not text:
         return None
 
-    if len(text) == 10 and text[4] == "-" and text[7] == "-":
-        try:
-            return datetime.strptime(text, "%Y-%m-%d")
-        except ValueError:
-            pass
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y"):
+        if len(text) == 10:
+            try:
+                return datetime.strptime(text, fmt)
+            except ValueError:
+                pass
 
     normalized = text.replace("Z", "+00:00")
     try:
@@ -179,7 +180,7 @@ def _format_dates(dep_raw: str | None, ret_raw: str | None, lang: str, tz: ZoneI
         ret_str = _format_single_date(ret_dt, now_year)
         return f"возврат {ret_str}" if lang != "he" else f"חזרה {ret_str}"
 
-    return "уточняются" if lang != "he" else "יתעדכן"
+    return "даты уточняются" if lang != "he" else "תאריכים יתעדכנו"
 
 
 def build_affiliate_link(flight: dict) -> str:
