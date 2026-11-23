@@ -45,6 +45,12 @@ def make_deal_key(flight: dict, lang: str = "ru") -> str:
 
 def run() -> None:
     lang = (os.environ.get("BOT_LANG") or os.environ.get("DEAL_LANG") or "ru").strip().lower()
+    disable_preview = (os.environ.get("DISABLE_LINK_PREVIEW", "false")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
     state = load_state(STATE_FILE)
     posted = state.setdefault("posted", {})
     flights = fetch_latest_tlv_prices(limit=30)
@@ -76,8 +82,8 @@ def run() -> None:
             skipped_dup += 1
             continue
 
-        text = format_deal_post(flight)
-        msg_id = send_channel_message(text)
+        text = format_deal_post(flight, lang=lang)
+        msg_id = send_channel_message(text, disable_web_page_preview=disable_preview)
         posted[key] = {
             "message_id": msg_id,
             "price": price_val,
