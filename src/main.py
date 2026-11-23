@@ -15,6 +15,26 @@ def _env_flag(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return int(raw.strip())
+    except ValueError:
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return float(raw.strip())
+    except ValueError:
+        return default
+
+
 def load_state(path_str: str) -> dict:
     path = Path(path_str)
     if not path.exists():
@@ -57,17 +77,14 @@ def run() -> None:
         or os.environ.get("DEAL_LANG")
         or "ru"
     ).strip().lower()
-    max_price = float(os.environ.get("MAX_PRICE_USD") or MAX_PRICE_USD)
+    max_price = _env_float("MAX_PRICE_USD", float(MAX_PRICE_USD))
+    max_posts = max(1, _env_int("MAX_POSTS_PER_RUN", 5))
+    send_delay = max(0.0, _env_float("SEND_DELAY_SECONDS", 2.5))
     state_path = (os.environ.get("STATE_FILE") or STATE_FILE).strip()
-    disable_preview = _env_flag("DISABLE_LINK_PREVIEW", default=False)
+
+    disable_preview = _env_flag("DISABLE_LINK_PREVIEW", default=True)
     force_republish = _env_flag("FORCE_REPUBLISH", default=False)
     dry_run = _env_flag("DRY_RUN", default=False)
-
-    try:
-        send_delay = float(os.environ.get("SEND_DELAY_SECONDS") or "1.5")
-    except (TypeError, ValueError):
-        send_delay = 1.5
-    send_delay = max(0.0, send_delay)
 
     state = load_state(state_path)
     posted = state.setdefault("posted", {})
@@ -76,8 +93,10 @@ def run() -> None:
     fetched_count = len(flights)
     skipped_price = 0
     skipped_dup = 0
+    skipped_cap = 0
     new_count = 0
     sample_prices: list[float] = []
+    candidates: list[tuple[float, dict]] = []
 
     for flight in flights:
         price = flight.get("value")
@@ -103,11 +122,26 @@ def run() -> None:
             skipped_dup += 1
             continue
 
+        candidates.append((price_val, flight))
+
+    # Публикуем сначала самые выгодные предложения
+    candidates.sort(key=lambda item: item[0])
+
+    for idx, (price_val, flight) in enumerate(candidates):
+        if new_count >= max_posts:
+            skipped_cap += 1
+            continue
+
+        key = make_deal_key(flight, lang=lang)
         text = format_deal_post(flight, lang=lang)
+
         if dry_run:
             print(f"[DRY_RUN] Would publish key={key}:\n{text}\n---")
             new_count += 1
             continue
+
+        if idx > 0 and send_delay > 0:
+            time.sleep(send_delay)
 
         msg_id = send_channel_message(text, disable_web_page_preview=disable_preview)
         posted[key] = {
@@ -117,8 +151,6 @@ def run() -> None:
         }
         new_count += 1
         save_state(state_path, state)
-        if send_delay > 0:
-            time.sleep(send_delay)
 
     min_price_str = f"{min(sample_prices):.2f}" if sample_prices else "n/a"
     max_price_seen_str = f"{max(sample_prices):.2f}" if sample_prices else "n/a"
@@ -126,8 +158,8 @@ def run() -> None:
     print(
         f"STATUS=OK | LANG={lang} | MAX_PRICE={max_price:.2f} | "
         f"FETCHED={fetched_count} | SKIP_PRICE={skipped_price} | "
-        f"SKIP_DUP={skipped_dup} | PUBLISHED={new_count} | "
-        f"SEEN_PRICES={min_price_str}..{max_price_seen_str}"
+        f"SKIP_DUP={skipped_dup} | SKIP_CAP={skipped_cap} | "
+        f"PUBLISHED={new_count} | SEEN_PRICES={min_price_str}..{max_price_seen_str}"
     )
 
     if new_count == 0:
