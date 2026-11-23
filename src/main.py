@@ -85,10 +85,6 @@ def _has_valid_departure_date(flight: dict, today_date, tz: ZoneInfo) -> bool:
     return dep_dt.date() >= today_date
 
 
-def _has_return_date(flight: dict, tz: ZoneInfo) -> bool:
-    return _parse_iso_date(flight.get("return_at"), tz) is not None
-
-
 def load_state(path_str: str) -> dict:
     path = Path(path_str)
     if not path.exists():
@@ -137,7 +133,6 @@ def run() -> None:
     state_path = (os.environ.get("STATE_FILE") or STATE_FILE).strip()
 
     disable_preview = _env_flag("DISABLE_LINK_PREVIEW", default=True)
-    require_return = _env_flag("REQUIRE_RETURN_DATE", default=False)
     send_photo = _env_flag("SEND_CITY_PHOTO", default=True)
     force_republish = _env_flag("FORCE_REPUBLISH", default=False)
     dry_run = _env_flag("DRY_RUN", default=False)
@@ -151,7 +146,6 @@ def run() -> None:
 
     fetched_count = len(flights)
     skipped_no_date = 0
-    skipped_roundtrip = 0
     skipped_price = 0
     skipped_dup = 0
     skipped_city = 0
@@ -163,10 +157,6 @@ def run() -> None:
     for flight in flights:
         if not _has_valid_departure_date(flight, today_date, tz):
             skipped_no_date += 1
-            continue
-
-        if require_return and not _has_return_date(flight, tz):
-            skipped_roundtrip += 1
             continue
 
         price = flight.get("value")
@@ -251,8 +241,7 @@ def run() -> None:
 
     print(
         f"STATUS=OK | LANG={lang} | MAX_PRICE={max_price:.2f} | "
-        f"REQUIRE_RETURN={require_return} | FETCHED={fetched_count} | "
-        f"SKIP_NO_DATE={skipped_no_date} | SKIP_RT={skipped_roundtrip} | "
+        f"FETCHED={fetched_count} | SKIP_NO_DATE={skipped_no_date} | "
         f"SKIP_PRICE={skipped_price} | SKIP_DUP={skipped_dup} | "
         f"SKIP_CITY={skipped_city} | SKIP_CAP={skipped_cap} | "
         f"PUBLISHED={new_count} | SEEN_PRICES={min_price_str}..{max_price_seen_str}"
