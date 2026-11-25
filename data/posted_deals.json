@@ -240,6 +240,41 @@
       "lang": "ru",
       "departure_at": "2027-01-26",
       "return_at": ""
+    },
+    "ru|TLV|LCA|2027-02-14||40": {
+      "message_id": 137,
+      "price": 40.0,
+      "lang": "ru",
+      "departure_at": "2027-02-14",
+      "return_at": ""
+    },
+    "ru|TLV|PMO|2027-01-16||51": {
+      "message_id": 138,
+      "price": 51.0,
+      "lang": "ru",
+      "departure_at": "2027-01-16",
+      "return_at": ""
+    },
+    "ru|TLV|NAP|2027-02-20||53": {
+      "message_id": 139,
+      "price": 53.0,
+      "lang": "ru",
+      "departure_at": "2027-02-20",
+      "return_at": ""
+    },
+    "ru|TLV|ROM|2027-02-04||59": {
+      "message_id": 140,
+      "price": 59.0,
+      "lang": "ru",
+      "departure_at": "2027-02-04",
+      "return_at": ""
+    },
+    "ru|TLV|MIL|2027-01-25||59": {
+      "message_id": 141,
+      "price": 59.0,
+      "lang": "ru",
+      "departure_at": "2027-01-25",
+      "return_at": ""
     }
   }
 }
